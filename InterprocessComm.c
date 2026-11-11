@@ -1,5 +1,4 @@
-Reader :
-
+// Reader :
 #include<stdio.h>
 #include<string.h>
 #include<fcntl.h>
@@ -26,8 +25,7 @@ close(fd);
 return 0;
 }
 
-Writer : 
-
+// Writer : 
 #include<sys/types.h>
 #include<sys/stat.h>
 #include<stdio.h>
@@ -52,6 +50,7 @@ int main()
     close(fd);
     return 0;
 }
+
 
 // 1. Theory: Interprocess Communication (IPC) is a mechanism provided by operating systems that allows two or more independent processes to exchange data and communicate with one another. A process is a program that is currently executing, and each process normally has its own separate memory space. Since independent processes cannot directly access each other's memory, IPC mechanisms are required to transfer information between them. Common IPC techniques include pipes, named pipes (FIFOs), message queues, shared memory, sockets, and signals. A pipe is an IPC mechanism that allows data to flow from one process to another in the form of a continuous stream of bytes. Pipes are generally used for communication between processes, where one process writes data into the pipe and another process reads that data. There are two main types of pipes: unnamed pipes and named pipes. An unnamed pipe is generally used for communication between related processes, such as a parent and child process, and does not have a permanent name in the file system. A named pipe, also called FIFO (First In, First Out), allows independent or unrelated processes to communicate using a common pipe name. FIFO follows the principle that data written first is read first, maintaining the order in which information is transferred. A named pipe is created using the mkfifo() system call, which creates a special file in the file system that processes can access using its name. Unlike a regular file, a FIFO does not store data permanently; instead, the operating system temporarily buffers the data until another process reads it. The open() system call is used to open the FIFO for reading or writing. The mode O_WRONLY opens the FIFO for writing, while O_RDONLY opens it for reading. The write() system call sends data into the pipe, and the read() system call receives data from it. The close() system call closes the file descriptor after communication is completed. By default, opening a FIFO for reading or writing may block until another process opens the opposite end. Unidirectional communication means data flows in only one direction, from sender to receiver, whereas bidirectional communication allows both processes to send and receive information. In full-duplex communication, both processes can exchange data in both directions, and two named pipes are commonly used to provide separate communication channels. In this assignment, the Writer Process accepts a message from the user and sends it through a named pipe called xyz, while the Reader Process receives the message and calculates the number of characters, words, and lines. The writer accepts input until the user enters the termination character @, which indicates that the message is complete. The reader then processes the received string using a loop. Characters are counted by examining each character in the string, words are estimated by counting spaces and newline characters, and lines are estimated by counting newline characters and adding one. This demonstrates how one process can transfer information to another process without directly sharing memory. However, the provided code implements only one-way communication, because the writer sends data to the reader through a single FIFO. The assignment specifies full-duplex communication, where the reader should also save the calculated results in a text file and send the file contents back to the writer through a second FIFO. These additional operations are not implemented in the given code. Also, counting spaces and newline characters does not always calculate the correct number of words, especially when multiple spaces are present. Thus, this program demonstrates the basic concepts of interprocess communication, named pipes, FIFO operation, data transfer, file descriptors, and communication between independent processes in an operating system.
 
