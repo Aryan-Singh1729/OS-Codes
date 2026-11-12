@@ -1,93 +1,44 @@
-#include <unistd.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <semaphore.h>
+#include <pthread.h>
+#include <unistd.h>
 
-sem_t ch[5];
+sem_t forks[5],room;
 
-void *philosopher(void *arg)
-{
-    int i = *(int *)arg;
-    int left, right;
-
-    printf("\n%d philosopher is created\n", i);
-
-    left = i;
-    right = (i + 1) % 5;
-
-    printf("\n%d philosopher is hungry\n", i);
-
-    sem_wait(&ch[left]);
-    sem_wait(&ch[right]);
-
-    printf("\n%d philosopher is eating\n", i);
-
-    sleep(5);
-
-    sem_post(&ch[right]);
-    sem_post(&ch[left]);
-
-    printf("\n%d philosopher is complete\n", i);
-
-    return NULL;
+void *philosopher(void *arg){
+  int id = *(int *)arg;
+  for(int i=0;i<3;i++){
+    printf("Philosopher %d is thinking.\n",id);
+    sleep(1);
+    sem_wait(&room);
+    sem_wait(&forks[i]);
+    sem_wait(&forks[(i+1)%5]);
+    printf("Philosopher %d is eating.\n",id);
+    sleep(2);
+    printf("Philosopher %d has finished.\n",id);
+    sem_post(&forks[(i+1)%5]);
+    sem_post(&forks[i]);
+    sem_post(&room);
+  }
+  return NULL;
 }
 
-int main()
-{
-    int i;
-    int id[5];
-    pthread_t pid[5];
-
-    for(i = 0; i < 5; i++)
-        sem_init(&ch[i], 0, 1);
-
-    for(i = 0; i < 5; i++)
-    {
-        id[i] = i;
-        pthread_create(&pid[i], NULL, philosopher, &id[i]);
-        sleep(i);
-    }
-
-    for(i = 0; i < 5; i++)
-        pthread_join(pid[i], NULL);
-
-    return 0;
+int main(){
+  pthread_t t[5];
+  int id[5];
+  sem_init(&room,0,4);
+  for(int i=0;i<5;i++){ sem_init(&forks[i],0,1); }
+  for(int i=0;i<5;i++){
+    id[i] = i;
+    pthread_create(&t[i],NULL,philosopher,&id[i]);
+  }
+  for(int i=0;i<5;i++){ pthread_join(t[i],NULL); }
+  return 0;
 }
 
 
-/*
-Sample Output
-Philosopher 1 is thinking
-Philosopher 2 is thinking
-Philosopher 3 is thinking
-Philosopher 4 is thinking
-Philosopher 5 is thinking
-
-Philosopher 1 is eating
-Philosopher 3 is eating
-Philosopher 1 finished eating
-Philosopher 3 finished eating
-
-Philosopher 2 is eating
-Philosopher 4 is eating
-Philosopher 2 finished eating
-Philosopher 4 finished eating
-
-Philosopher 5 is eating
-Philosopher 5 finished eating
-
-The sample output shows how 5 philosophers share 5 forks without deadlock.
-
-1. Thinking: Initially, all five philosophers are thinking and waiting for their turn to eat.
-2. Eating: Philosophers 1 and 3 start eating simultaneously because they use different forks.
-3. Finished Eating: Philosophers 1 and 3 finish eating and release their forks using sem_post().
-4. Next Turn: Philosophers 2 and 4 acquire the available forks and start eating.
-5. Last Philosopher: Philosopher 5 gets the required forks and finishes eating.
-Conclusion: All five philosophers successfully finish eating without deadlock. Multiple philosophers can eat simultaneously if their required forks are available.
-Note: The order of execution may change because threads run concurrently.
-*/
 
 
-// 1. Theory: Thread synchronization is a technique used in operating systems to coordinate multiple threads when they share common resources. When multiple threads try to access the same resource simultaneously, problems such as race conditions, deadlock, and starvation may occur. A deadlock is a situation where two or more threads wait indefinitely for resources held by one another, preventing further execution. Starvation occurs when a thread keeps waiting for a resource because other threads repeatedly obtain access to it. The Dining Philosophers Problem is a classical synchronization problem that demonstrates how deadlock can occur when multiple threads compete for limited resources. In this problem, five philosophers sit around a circular table, with five forks placed between them. Each philosopher performs two activities: thinking and eating. A philosopher does not need any forks while thinking, but to eat, they must acquire two forks, one from their left side and one from their right side. Since each fork is shared between two neighboring philosophers, only one philosopher can use a particular fork at a time. The problem occurs when all five philosophers become hungry simultaneously and each picks up their left fork. Now every philosopher holds one fork and waits for their right fork, which is already held by the neighboring philosopher. Consequently, none of the philosophers can eat or release their forks, resulting in deadlock. Deadlock occurs when four conditions exist simultaneously: mutual exclusion, where only one thread can use a resource at a time; hold and wait, where a thread holds one resource while waiting for another; no preemption, where a resource cannot be forcibly taken away; and circular wait, where each thread waits for a resource held by another thread in a circular chain. To manage access to shared resources, we use semaphores, which are synchronization variables that control resource availability. Semaphores use two main operations: sem_wait(), which acquires a resource or blocks the thread if it is unavailable, and sem_post(), which releases a resource and may wake a waiting thread. A binary semaphore is initialized to one and can be used to ensure that only one philosopher accesses a particular fork at a time. In this program, five binary semaphores represent the five forks, and each philosopher must successfully acquire both forks before eating. Once eating is completed, the philosopher releases both forks, allowing other philosophers to use them. The program also uses the sleep() function to introduce delays, which helps demonstrate concurrent execution and resource competition. However, the given implementation does not guarantee deadlock prevention, because every philosopher attempts to acquire the left fork before the right fork. If all philosophers acquire their left forks simultaneously, circular waiting can still occur. The delays between thread creation reduce the likelihood of this situation during typical execution but do not provide a guaranteed deadlock-free solution. Thus, the Dining Philosophers Problem demonstrates the importance of thread synchronization, mutual exclusion, semaphores, resource sharing, and deadlock handling in operating systems.
+// 1. Theory: Thread synchronization is a technique used in operating systems to coordinate multiple threads when they share common resources. When several threads try to access the same resource simultaneously, problems such as race conditions, deadlock, and starvation may occur. A deadlock is a situation where two or more threads wait indefinitely for resources held by one another, preventing them from completing their execution. Starvation occurs when a thread keeps waiting for a resource because other threads repeatedly get access to it. The Dining Philosophers Problem is a classical synchronization problem used to demonstrate how deadlock can occur when multiple threads compete for limited resources. In this problem, five philosophers sit around a circular table with five forks placed between them. Each philosopher performs two activities: thinking and eating. While thinking, a philosopher does not require any forks, but to eat, they must acquire two forks, one from their left side and one from their right side. Since each fork is shared between two neighboring philosophers, only one philosopher can use a particular fork at a time. The problem occurs when all five philosophers become hungry simultaneously and each picks up one fork. Now every philosopher holds one fork and waits for the second fork, which is already held by a neighboring philosopher. Consequently, none of them can eat or release their forks, resulting in deadlock. Deadlock occurs when four conditions exist simultaneously: mutual exclusion, where only one thread can use a resource at a time; hold and wait, where a thread holds one resource while waiting for another; no preemption, where a resource cannot be forcibly taken away; and circular wait, where threads wait for resources held by one another in a circular chain. To prevent this problem, the program uses semaphores, which are synchronization variables that control access to shared resources. The sem_wait() operation acquires an available permit or blocks the thread if none is available, while sem_post() releases a permit and may wake a waiting thread. A binary semaphore is initialized to one and allows only one philosopher to access a particular fork at a time. A counting semaphore can maintain multiple permits and control how many threads are allowed to proceed simultaneously. In this program, five binary semaphores represent the five forks, while an additional counting semaphore named room is initialized to four. This allows at most four philosophers to attempt to acquire forks simultaneously, preventing the situation where all five philosophers hold one fork each and wait for another. In the standard Dining Philosophers solution, this restriction prevents circular waiting and guarantees freedom from deadlock. After eating, each philosopher releases both forks and the room permit, allowing other philosophers to proceed. Each philosopher repeats the thinking and eating cycle three times. However, starvation may still occur in general because semaphores do not necessarily guarantee fair scheduling. An important detail in the given code is that the forks are selected using the loop variable i instead of the philosopher's id. Therefore, the code does not correctly assign a fixed pair of neighboring forks to each philosopher, although its semaphore operations still protect the forks from simultaneous use. Thus, the Dining Philosophers Problem demonstrates thread synchronization, mutual exclusion, resource sharing, and deadlock prevention using semaphores.
 
-// 2. Code Explanation: The program begins by including four header files: unistd.h, pthread.h, stdio.h, and semaphore.h. The unistd.h header provides the sleep() function, pthread.h provides functions for creating and managing threads, stdio.h provides the printf() function, and semaphore.h provides semaphore operations. The statement sem_t ch[5] declares an array of five semaphores, where each semaphore represents one fork shared between neighboring philosophers. The function void *philosopher(void *arg) defines the actions performed by each philosopher thread. Inside this function, int i = *(int *)arg retrieves the philosopher's identification number from the argument passed during thread creation. Two integer variables, left and right, are declared to store the indices of the forks required by the philosopher. The statement printf("\n%d philosopher is created\n", i) displays a message indicating that the philosopher thread has started execution. The statement left = i assigns the philosopher's own index as the left fork, while right = (i + 1) % 5 calculates the right fork's index. The modulo operator % ensures circular indexing so that philosopher 4 uses fork 0 as the right fork instead of accessing an invalid index. The next printf() statement displays that the philosopher is hungry and wants to eat. The statement sem_wait(&ch[left]) attempts to acquire the left fork, while sem_wait(&ch[right]) attempts to acquire the right fork. If a fork is already being used by another philosopher, the thread waits until it becomes available. Once both forks are acquired, the program displays that the philosopher is eating using printf(). The statement sleep(5) introduces a five-second delay to simulate the time taken by the philosopher to eat. After eating, sem_post(&ch[right]) releases the right fork, and sem_post(&ch[left]) releases the left fork, allowing neighboring philosophers to acquire them. The program then displays that the philosopher has completed eating and returns NULL, indicating the completion of that thread. In the main function, the variable int i is used as a loop counter, int id[5] stores the identification numbers of all five philosophers, and pthread_t pid[5] declares an array of five thread identifiers. The first for loop initializes all five semaphores using sem_init(&ch[i], 0, 1). Here, the first argument specifies the semaphore, the second argument 0 indicates that it is shared between threads of the same process, and the third argument 1 indicates that each fork is initially available. The second for loop creates five philosopher threads. The statement id[i] = i assigns a unique identification number to each philosopher, while pthread_create(&pid[i], NULL, philosopher, &id[i]) creates a new thread that executes the philosopher() function. The arguments specify the thread identifier, default thread attributes, function to execute, and argument passed to that function. The statement sleep(i) introduces a delay after creating each thread, with delay values of 0, 1, 2, 3, and 4 seconds. This separates thread creation times and reduces the chances of all philosophers attempting to acquire forks simultaneously, although it does not guarantee deadlock prevention. The final for loop uses pthread_join(pid[i], NULL) to make the main thread wait until every philosopher thread finishes execution. Finally, the program returns 0 to indicate successful completion. Therefore, this program demonstrates how multiple philosopher threads compete for shared forks and how semaphores provide mutual exclusion by allowing only one philosopher to use a particular fork at a time. However, a guaranteed deadlock-free implementation would require an additional mechanism, such as limiting the number of philosophers attempting to acquire forks to four or enforcing a consistent order of fork acquisition.
+// 2. Code Explanation: The program begins by including four header files: stdio.h, semaphore.h, pthread.h, and unistd.h. The stdio.h header provides the printf() function for displaying messages, semaphore.h provides semaphore functions, pthread.h provides functions for creating and managing threads, and unistd.h provides the sleep() function. The statement sem_t forks[5], room declares five semaphores representing the forks and one additional semaphore named room to limit the number of philosophers attempting to eat simultaneously. The function void *philosopher(void *arg) defines the activities performed by each philosopher thread. Inside this function, int id = *(int *)arg retrieves the philosopher's identification number from the argument passed during thread creation. The for(int i=0; i<3; i++) loop makes each philosopher repeat the thinking and eating process three times. The statement printf("Philosopher %d is thinking.\n", id) displays that the philosopher is thinking, while sleep(1) introduces a one-second delay to simulate thinking. The statement sem_wait(&room) checks whether a room permit is available. Since room is initialized to four, at most four philosophers can enter the fork-acquisition section simultaneously. The statements sem_wait(&forks[i]) and sem_wait(&forks[(i+1)%5]) attempt to acquire two forks. If a fork is already being used by another philosopher, the thread waits until it becomes available. The modulo operator % ensures circular indexing, meaning that after fork 4, the next fork is fork 0. However, in this code, i represents the loop iteration rather than the philosopher's identification number. Therefore, during the first iteration, every philosopher attempts to acquire forks 0 and 1; during the second iteration, forks 1 and 2; and during the third iteration, forks 2 and 3. For the correct Dining Philosophers implementation, these statements should use forks[id] and forks[(id+1)%5], so each philosopher acquires their own two neighboring forks. Once both forks have been acquired, printf("Philosopher %d is eating.\n", id) displays that the philosopher is eating, and sleep(2) introduces a two-second delay to simulate eating. The next printf() statement displays that the philosopher has finished eating. The statements sem_post(&forks[(i+1)%5]) and sem_post(&forks[i]) release both acquired forks, making them available to other philosophers. The statement sem_post(&room) releases the room permit, allowing another philosopher to attempt eating. After completing three iterations, the function returns NULL, indicating that the thread has finished execution. In the main function, pthread_t t[5] declares an array of five thread identifiers, while int id[5] stores the identification numbers of the philosophers. The statement sem_init(&room, 0, 4) initializes the counting semaphore with four permits. Here, 0 indicates that the semaphore is shared between threads of the same process, and 4 specifies the maximum number of available room permits. The first for loop initializes all five fork semaphores using sem_init(&forks[i], 0, 1), where the value 1 indicates that each fork is initially available. The second for loop assigns a unique identification number to each philosopher using id[i] = i and creates the philosopher threads using pthread_create(&t[i], NULL, philosopher, &id[i]). This function creates a new thread, uses default thread attributes, executes the philosopher() function, and passes the philosopher's identification number as an argument. All five threads execute concurrently and compete for the available forks. The final for loop uses pthread_join(t[i], NULL) to make the main thread wait until all five philosopher threads complete their execution. Finally, return 0 terminates the program successfully. Thus, the program demonstrates how binary semaphores control access to individual forks and how a counting semaphore limits the number of philosophers competing for resources. With the fork-index correction mentioned above, it implements the standard deadlock-free Dining Philosophers solution using semaphores./
